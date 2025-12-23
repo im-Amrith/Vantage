@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import uuid
+from datetime import datetime
 from dataclasses import dataclass, field
 
 from app.models.schemas import (
@@ -75,7 +76,9 @@ class InterviewOrchestrator:
         session.events.append(
             {
                 "type": "answer_submitted",
+                "timestamp": datetime.now().isoformat(),
                 "question_id": question.id,
+                "question": question.model_dump(),
                 "answer": answer_text,
                 "feedback": feedback.model_dump(),
             }
@@ -92,6 +95,10 @@ class InterviewOrchestrator:
         session = self.get_session(session_id)
         vision_stats = self._vision.analyze_telemetry(telemetry)
         session.events.append({"type": "telemetry", "telemetry": telemetry, "vision": vision_stats})
+
+    async def end_session(self, session_id: str) -> InterviewReport:
+        session = self.get_session(session_id)
+        return await self._build_report(session)
 
     async def _build_report(self, session: InterviewSession) -> InterviewReport:
         feedbacks = [e.get("feedback") for e in session.events if e.get("type") == "answer_submitted"]

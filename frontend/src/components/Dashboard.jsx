@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from './ui/button';
+import { getDashboardStats } from '../services/api';
 import { 
   LayoutDashboard, 
   FileText, 
@@ -16,7 +17,8 @@ import {
   Play,
   Code,
   DollarSign,
-  Trello
+  Trello,
+  Loader2
 } from 'lucide-react';
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer } from 'recharts';
 
@@ -25,16 +27,22 @@ const Dashboard = () => {
   const [role, setRole] = useState('Senior Backend Developer');
   const [jobDescription, setJobDescription] = useState('');
   const [focusMode, setFocusMode] = useState('technical'); // 'technical' or 'behavioral'
+  const [dashboardData, setDashboardData] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  // Mock Data for Radar Chart
-  const skillData = [
-    { subject: 'Technical', A: 120, fullMark: 150 },
-    { subject: 'Communication', A: 98, fullMark: 150 },
-    { subject: 'Confidence', A: 86, fullMark: 150 },
-    { subject: 'Subject Depth', A: 99, fullMark: 150 },
-    { subject: 'Problem Solving', A: 85, fullMark: 150 },
-    { subject: 'Culture Fit', A: 65, fullMark: 150 },
-  ];
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const data = await getDashboardStats();
+        setDashboardData(data);
+      } catch (error) {
+        console.error("Failed to fetch dashboard stats", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, []);
 
   const handleInitialize = () => {
     navigate('/interview/live', { 
@@ -45,6 +53,14 @@ const Dashboard = () => {
       } 
     });
   };
+
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[#0B0C10] text-white">
+        <Loader2 className="w-10 h-10 animate-spin text-orange-500" />
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen font-sans text-slate-300 selection:bg-orange-500/30">
@@ -225,7 +241,7 @@ const Dashboard = () => {
                     
                     <div className="flex-1 min-h-[250px] relative z-10">
                         <ResponsiveContainer width="100%" height="100%">
-                            <RadarChart cx="50%" cy="50%" outerRadius="70%" data={skillData}>
+                            <RadarChart cx="50%" cy="50%" outerRadius="70%" data={dashboardData?.skill_matrix || []}>
                                 <defs>
                                     <linearGradient id="radarFill" x1="0" y1="0" x2="0" y2="1">
                                         <stop offset="5%" stopColor="#f97316" stopOpacity={0.5}/>
@@ -267,31 +283,26 @@ const Dashboard = () => {
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="bg-white/[0.02] p-4 rounded-xl border border-white/5 flex items-start gap-4 group hover:border-red-500/30 transition-colors">
-                            <div className="p-2 bg-red-500/10 rounded-lg text-red-500 mt-1 shadow-[0_0_10px_rgba(239,68,68,0.2)]">
-                                <Zap size={18} />
+                        {dashboardData?.critical_alerts?.map((alert) => (
+                            <div key={alert.id} className={`bg-white/[0.02] p-4 rounded-xl border border-white/5 flex items-start gap-4 group transition-colors ${
+                                alert.type === 'critical' ? 'hover:border-red-500/30' : 'hover:border-yellow-500/30'
+                            }`}>
+                                <div className={`p-2 rounded-lg mt-1 shadow-[0_0_10px_rgba(0,0,0,0.2)] ${
+                                    alert.type === 'critical' ? 'bg-red-500/10 text-red-500' : 'bg-yellow-500/10 text-yellow-500'
+                                }`}>
+                                    {alert.type === 'critical' ? <Zap size={18} /> : <Activity size={18} />}
+                                </div>
+                                <div className="flex-1">
+                                    <h4 className="text-white font-medium mb-1">{alert.title}</h4>
+                                    <p className="text-xs text-slate-400 mb-3">{alert.description}</p>
+                                    {alert.action_label && (
+                                        <button className="text-xs bg-white/5 hover:bg-white/10 text-white px-3 py-1.5 rounded-lg transition-colors flex items-center gap-2 border border-white/5">
+                                            <Play size={12} /> {alert.action_label}
+                                        </button>
+                                    )}
+                                </div>
                             </div>
-                            <div className="flex-1">
-                                <h4 className="text-white font-medium mb-1">System Design Depth</h4>
-                                <p className="text-xs text-slate-400 mb-3">You failed to discuss Scalability in 3/5 sessions.</p>
-                                <button className="text-xs bg-white/5 hover:bg-white/10 text-white px-3 py-1.5 rounded-lg transition-colors flex items-center gap-2 border border-white/5">
-                                    <Play size={12} /> Practice Module
-                                </button>
-                            </div>
-                        </div>
-
-                        <div className="bg-white/[0.02] p-4 rounded-xl border border-white/5 flex items-start gap-4 group hover:border-yellow-500/30 transition-colors">
-                            <div className="p-2 bg-yellow-500/10 rounded-lg text-yellow-500 mt-1 shadow-[0_0_10px_rgba(234,179,8,0.2)]">
-                                <Activity size={18} />
-                            </div>
-                            <div className="flex-1">
-                                <h4 className="text-white font-medium mb-1">Body Language</h4>
-                                <p className="text-xs text-slate-400 mb-3">Eye contact drops below 40% when thinking.</p>
-                                <button className="text-xs bg-white/5 hover:bg-white/10 text-white px-3 py-1.5 rounded-lg transition-colors flex items-center gap-2 border border-white/5">
-                                    <Play size={12} /> Practice Module
-                                </button>
-                            </div>
-                        </div>
+                        ))}
                     </div>
                 </div>
             </div>
@@ -307,18 +318,18 @@ const Dashboard = () => {
                     </div>
 
                     <div className="space-y-3">
-                        {[
-                            { role: "DevOps Intern", date: "2h ago", score: 82, status: "Passed", color: "text-green-400 bg-green-400/10 border-green-400/20" },
-                            { role: "Senior Backend", date: "1d ago", score: 65, status: "Failed", color: "text-red-400 bg-red-400/10 border-red-400/20" },
-                            { role: "Full Stack", date: "3d ago", score: 78, status: "Passed", color: "text-green-400 bg-green-400/10 border-green-400/20" },
-                        ].map((mission, i) => (
+                        {dashboardData?.recent_missions?.map((mission, i) => (
                             <div key={i} className="flex items-center justify-between p-3 rounded-xl hover:bg-white/5 transition-colors cursor-pointer group border border-transparent hover:border-white/5">
                                 <div>
                                     <h4 className="text-sm font-medium text-white group-hover:text-orange-500 transition-colors">{mission.role}</h4>
                                     <p className="text-xs text-slate-500 font-mono">{mission.date}</p>
                                 </div>
                                 <div className="text-right">
-                                    <div className={`text-xs font-bold px-2 py-1 rounded-lg mb-1 inline-block border ${mission.color} font-mono`}>
+                                    <div className={`text-xs font-bold px-2 py-1 rounded-lg mb-1 inline-block border font-mono ${
+                                        mission.status === 'Passed' 
+                                            ? 'text-green-400 bg-green-400/10 border-green-400/20' 
+                                            : 'text-red-400 bg-red-400/10 border-red-400/20'
+                                    }`}>
                                         {mission.score}%
                                     </div>
                                 </div>

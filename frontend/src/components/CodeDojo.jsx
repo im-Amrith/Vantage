@@ -17,6 +17,7 @@ import {
   FileText
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { executeCode } from '../services/api';
 
 export default function CodeDojo() {
   const navigate = useNavigate();
@@ -38,6 +39,7 @@ def invertTree(root: TreeNode) -> TreeNode:
   const [isRunning, setIsRunning] = useState(false);
   const [showSensei, setShowSensei] = useState(false);
   const [complexity, setComplexity] = useState(null);
+  const [activeTab, setActiveTab] = useState('tests');
 
   // Mock Test Cases
   const [testCases, setTestCases] = useState([
@@ -46,27 +48,52 @@ def invertTree(root: TreeNode) -> TreeNode:
     { id: 3, input: "root = []", expected: "[]", status: "pending" },
   ]);
 
-  const handleRun = () => {
+  const handleRun = async () => {
     setIsRunning(true);
     setOutput(null);
     setComplexity(null);
+    
+    // Reset test cases to pending
+    setTestCases(prev => prev.map(tc => ({ ...tc, status: "pending", actual: null })));
 
-    // Simulate execution delay
-    setTimeout(() => {
+    try {
+      const result = await executeCode(code, language);
+      
+      if (result.error) {
+        setOutput(result.error);
+        // Mark all as failed if system error
+        setTestCases(prev => prev.map(tc => ({ ...tc, status: "failed" })));
+      } else {
+        // Update test cases based on result
+        const newTestCases = testCases.map(tc => {
+          const res = result.results.find(r => r.id === tc.id);
+          return {
+            ...tc,
+            status: res?.passed ? "passed" : "failed",
+            actual: res?.actual
+          };
+        });
+        setTestCases(newTestCases);
+        
+        const passedCount = result.results.filter(r => r.passed).length;
+        const totalCount = result.results.length;
+        
+        let outMsg = "";
+        if (result.output) {
+             outMsg += `Output:\n${result.output}\n\n`;
+        }
+        outMsg += `Test Run Completed: ${passedCount}/${totalCount} Passed`;
+        setOutput(outMsg);
+
+        if (result.complexity) {
+          setComplexity(result.complexity);
+        }
+      }
+    } catch (error) {
+      setOutput(`Execution failed: ${error.message}`);
+    } finally {
       setIsRunning(false);
-      setOutput("Test Run Completed: 3/3 Passed");
-      
-      // Update test cases to passed
-      setTestCases(prev => prev.map(tc => ({ ...tc, status: "passed" })));
-      
-      // Show complexity stats
-      setComplexity({
-        time: "O(n)",
-        space: "O(n)",
-        memory: "14.2 MB",
-        runtime: "32 ms"
-      });
-    }, 1500);
+    }
   };
 
   const handleSenseiHint = () => {
@@ -240,16 +267,24 @@ def invertTree(root: TreeNode) -> TreeNode:
         <div className="h-64 bg-[#0B0C10] border-t border-white/5 flex flex-col">
           {/* Tabs */}
           <div className="flex border-b border-white/5">
-            <button className="px-6 py-3 text-sm font-medium text-white border-b-2 border-orange-500 bg-white/5">
+            <button 
+                onClick={() => setActiveTab('tests')}
+                className={`px-6 py-3 text-sm font-medium transition-colors ${activeTab === 'tests' ? 'text-white border-b-2 border-orange-500 bg-white/5' : 'text-slate-500 hover:text-white'}`}
+            >
               Test Cases
             </button>
-            <button className="px-6 py-3 text-sm font-medium text-slate-500 hover:text-white transition-colors">
+            <button 
+                onClick={() => setActiveTab('console')}
+                className={`px-6 py-3 text-sm font-medium transition-colors ${activeTab === 'console' ? 'text-white border-b-2 border-orange-500 bg-white/5' : 'text-slate-500 hover:text-white'}`}
+            >
               Console Output
             </button>
           </div>
 
           {/* Content */}
           <div className="flex-1 p-6 overflow-y-auto flex gap-6">
+            {activeTab === 'tests' ? (
+            <>
             {/* Test Case Matrix */}
             <div className="flex-1 space-y-4">
               <div className="grid grid-cols-3 gap-4">
@@ -267,9 +302,16 @@ def invertTree(root: TreeNode) -> TreeNode:
                     <div className="flex justify-between items-center mb-2">
                       <span className="text-xs font-bold text-slate-500 uppercase">Case {tc.id}</span>
                       {tc.status === 'passed' && <CheckCircle size={14} className="text-green-500" />}
+                      {tc.status === 'failed' && <XCircle size={14} className="text-red-500" />}
                       {tc.status === 'pending' && <div className="w-2 h-2 rounded-full bg-slate-600" />}
                     </div>
                     <div className="font-mono text-xs text-slate-300 truncate" title={tc.input}>{tc.input}</div>
+                    {tc.status === 'failed' && tc.actual && (
+                        <div className="mt-2 pt-2 border-t border-red-500/20">
+                            <div className="text-[10px] text-slate-500">Expected: {tc.expected}</div>
+                            <div className="text-[10px] text-red-400">Actual: {tc.actual}</div>
+                        </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -309,6 +351,12 @@ def invertTree(root: TreeNode) -> TreeNode:
                   </div>
                 </div>
               </div>
+            )}
+            </>
+            ) : (
+                <div className="flex-1 font-mono text-sm text-slate-300 whitespace-pre-wrap">
+                    {output || "No output available."}
+                </div>
             )}
           </div>
         </div>

@@ -94,3 +94,57 @@ class LlmAgent:
                 "tips": ["Keep trying"],
                 "attitude_score": 0.8
             }
+
+    async def analyze_company_intel(self, company: str, context: dict) -> dict:
+        parser = JsonOutputParser()
+        prompt = ChatPromptTemplate.from_template(
+            """
+            You are a corporate intelligence analyst. Analyze the provided search results for {company} and extract key information for a job candidate.
+            
+            Search Context:
+            Tech Stack Info: {tech_stack}
+            Values Info: {values}
+            Interview Info: {interview}
+            News Info: {news}
+            Sentiment Info: {sentiment}
+            
+            Provide a JSON response with the following keys:
+            - techStack: list[str] (Extract at least 5 key technologies, languages, or frameworks mentioned. e.g. ["React", "Python", "AWS", "Go", "Kubernetes"])
+            - values: list[str] (Core values or leadership principles)
+            - topics: list[dict] (Common interview topics with probability, e.g. {{"topic": "Graphs", "probability": 80}})
+            - tips: list[str] (Specific interview tips for this company)
+            - news: list[str] (Recent relevant news headlines)
+            - sentiment: dict (Market sentiment analysis)
+                - aggregateScore: float (0-5)
+                - totalReviews: str (e.g. "12k")
+                - sentiment: str (e.g. "Mostly Positive")
+                - sources: list[dict] (e.g. [{{"name": "Glassdoor", "rating": 4.2, "icon": "G", "color": "text-green-500"}}])
+                - themes: list[dict] (e.g. [{{"topic": "WLB", "score": "High", "trend": "up"}}])
+                - aiSummary: dict ({{ "pros": [], "cons": [] }})
+            
+            {format_instructions}
+            """
+        )
+        
+        chain = prompt | self.llm | parser
+        
+        try:
+            result = await chain.ainvoke({
+                "company": company,
+                "tech_stack": context.get("tech_stack", ""),
+                "values": context.get("values", ""),
+                "interview": context.get("interview", ""),
+                "news": context.get("news", ""),
+                "sentiment": context.get("sentiment", ""),
+                "format_instructions": parser.get_format_instructions(),
+            })
+            return result
+        except Exception as e:
+            print(f"Error analyzing company intel: {e}")
+            return {
+                "techStack": ["Unknown"],
+                "values": ["Unknown"],
+                "topics": [],
+                "tips": ["Research the company website."],
+                "news": []
+            }

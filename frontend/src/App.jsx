@@ -12,6 +12,7 @@ import ResumeArchitect from './components/ResumeArchitect';
 import CompanyIntel from './components/CompanyIntel';
 import Negotiator from './components/Negotiator';
 import ApplicationTracker from './components/ApplicationTracker';
+import RoadmapGenerator from './components/RoadmapGenerator';
 
 function App() {
   return (
@@ -30,6 +31,7 @@ function App() {
         <Route path="/resume" element={<ResumeArchitect />} />
         <Route path="/recon" element={<CompanyIntel />} />
         <Route path="/negotiator" element={<Negotiator />} />
+        <Route path="/pathfinder" element={<RoadmapGenerator />} />
       </Routes>
     </Router>
   );

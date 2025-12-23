@@ -4,7 +4,7 @@ import VideoFeed from './VideoFeed';
 import { Button } from './ui/button';
 import { Mic, MicOff, Video, VideoOff, PhoneOff, FileText, MessageSquare, Link as LinkIcon, ChevronRight, ChevronLeft, User, Upload } from 'lucide-react';
 import { useMedia } from '../hooks/useMedia';
-import { uploadResume, startInterview, submitAnswer } from '../services/api';
+import { uploadResume, startInterview, submitAnswer, endInterviewSession } from '../services/api';
 
 export default function InterviewHUD() {
   const navigate = useNavigate();
@@ -69,12 +69,16 @@ export default function InterviewHUD() {
         recognitionRef.current = new SpeechRecognition();
         recognitionRef.current.continuous = true;
         recognitionRef.current.interimResults = true;
+        recognitionRef.current.lang = 'en-US'; // Improve accuracy by setting language
 
         recognitionRef.current.onresult = (event) => {
             let currentInterim = '';
             for (let i = event.resultIndex; i < event.results.length; ++i) {
                 if (event.results[i].isFinal) {
-                    setTranscript(prev => prev + event.results[i][0].transcript + ' ');
+                    setTranscript(prev => {
+                        const newPart = event.results[i][0].transcript.trim();
+                        return prev ? `${prev} ${newPart}` : newPart;
+                    });
                 } else {
                     currentInterim += event.results[i][0].transcript;
                 }
@@ -82,8 +86,22 @@ export default function InterviewHUD() {
             setInterimTranscript(currentInterim);
         };
 
+        recognitionRef.current.onend = () => {
+            // Auto-restart if we are still in Speaking state
+            if (status === 'Speaking' && recognitionRef.current) {
+                try {
+                    recognitionRef.current.start();
+                } catch (e) {
+                    // Ignore if already started
+                }
+            }
+        };
+
         recognitionRef.current.onerror = (event) => {
             console.error("Speech recognition error", event.error);
+            if (event.error === 'not-allowed') {
+                alert("Microphone access denied. Please enable it.");
+            }
         };
     }
 
@@ -182,8 +200,18 @@ export default function InterviewHUD() {
     }
   };
 
-  const endInterview = () => {
-    navigate('/results');
+  const endInterview = async () => {
+    if (sessionId) {
+      try {
+        const report = await endInterviewSession(sessionId);
+        navigate('/results', { state: { report } });
+      } catch (error) {
+        console.error("Failed to end interview", error);
+        navigate('/results'); // Fallback
+      }
+    } else {
+      navigate('/results');
+    }
   };
 
   return (

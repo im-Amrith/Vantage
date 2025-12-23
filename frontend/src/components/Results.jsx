@@ -9,6 +9,53 @@ export default function Results() {
   const location = useLocation();
   const report = location.state?.report;
 
+  // Process real report data if available
+  const realQuestions = report?.events
+    ?.filter(e => e.type === 'answer_submitted')
+    .map((e, index) => ({
+      id: index + 1,
+      timestamp: new Date(e.timestamp || Date.now()).toLocaleTimeString([], {minute:'2-digit', second:'2-digit'}),
+      question: e.question?.prompt || e.question || "Question text unavailable",
+      yourAnswer: e.answer,
+      idealAnswer: e.feedback?.notes ? e.feedback.notes.join(' ') : "Focus on structured problem solving.",
+      feedback: e.feedback?.notes ? e.feedback.notes[0] : "Review the detailed notes.",
+      score: Math.round((e.feedback?.technical_accuracy || 0.5) * 100)
+    }));
+
+  // Process real transcript
+  const realTranscript = [];
+  if (report?.events) {
+    report.events.forEach((e) => {
+      if (e.type === 'answer_submitted') {
+        const time = new Date(e.timestamp || Date.now()).toLocaleTimeString([], {minute:'2-digit', second:'2-digit'});
+        // Add Question
+        realTranscript.push({
+          time: time,
+          speaker: "AI",
+          text: e.question?.prompt || e.question || "Question unavailable"
+        });
+        // Add Answer
+        realTranscript.push({
+          time: time,
+          speaker: "You",
+          text: e.answer || "",
+          // Simple keyword detection for demo purposes
+          keyword: e.answer?.length > 50
+        });
+      }
+    });
+  }
+
+  // Process real timeline
+  const realTimeline = report?.events
+    ?.filter(e => e.type === 'answer_submitted')
+    .map((e, i) => ({
+      time: `Q${i + 1}`,
+      confidence: Math.round((e.feedback?.confidence || 0.5) * 100),
+      nervousness: Math.round((1 - (e.feedback?.confidence || 0.5)) * 100),
+      question: `Q${i + 1}`
+    }));
+
   // Mock Data Generation for Advanced Features
   const mockTimelineData = Array.from({ length: 24 }, (_, i) => ({
     time: `${i}m`,
@@ -51,10 +98,12 @@ export default function Results() {
   const data = {
     ...report,
     hiring_probability: report?.hiring_probability || 0.78,
-    summary: "Great technical depth in Python and System Design, but you rushed the behavioral section. Your confidence improved significantly after the first 5 minutes.",
-    timeline: mockTimelineData,
-    transcript: mockTranscript,
-    detailed_feedback: mockQuestions
+    summary: report?.areas_of_improvement 
+      ? `Based on the analysis, here are the key takeaways. Areas to improve: ${report.areas_of_improvement.join(', ')}. Top tip: ${report.tips?.[0] || 'Keep practicing.'}` 
+      : "Great technical depth in Python and System Design, but you rushed the behavioral section. Your confidence improved significantly after the first 5 minutes.",
+    timeline: realTimeline?.length > 0 ? realTimeline : mockTimelineData,
+    transcript: realTranscript?.length > 0 ? realTranscript : mockTranscript,
+    detailed_feedback: realQuestions?.length > 0 ? realQuestions : mockQuestions
   };
 
   const [activeQuestion, setActiveQuestion] = useState(null);
@@ -125,19 +174,42 @@ export default function Results() {
                 <p className="text-gray-300 leading-relaxed text-lg">
                     "{data.summary}"
                 </p>
-                <div className="mt-6 flex gap-4">
-                    <div className="flex items-center gap-2 text-sm text-gray-400">
-                        <div className="w-2 h-2 rounded-full bg-green-500" />
-                        Strong Technicals
-                    </div>
-                    <div className="flex items-center gap-2 text-sm text-gray-400">
-                        <div className="w-2 h-2 rounded-full bg-yellow-500" />
-                        Pacing Issues
-                    </div>
-                    <div className="flex items-center gap-2 text-sm text-gray-400">
-                        <div className="w-2 h-2 rounded-full bg-red-500" />
-                        Missed Edge Cases
-                    </div>
+                <div className="mt-6 flex flex-wrap gap-4">
+                    {report?.tips?.length > 0 ? (
+                        <>
+                             <div className="flex items-center gap-2 text-sm text-gray-400">
+                                <div className="w-2 h-2 rounded-full bg-green-500" />
+                                {report.num_questions} Questions Completed
+                            </div>
+                            {report.areas_of_improvement?.slice(0, 1).map((area, i) => (
+                                <div key={i} className="flex items-center gap-2 text-sm text-gray-400">
+                                    <div className="w-2 h-2 rounded-full bg-yellow-500" />
+                                    {area}
+                                </div>
+                            ))}
+                            {report.mistakes?.slice(0, 1).map((mistake, i) => (
+                                <div key={i} className="flex items-center gap-2 text-sm text-gray-400">
+                                    <div className="w-2 h-2 rounded-full bg-red-500" />
+                                    {mistake}
+                                </div>
+                            ))}
+                        </>
+                    ) : (
+                        <>
+                            <div className="flex items-center gap-2 text-sm text-gray-400">
+                                <div className="w-2 h-2 rounded-full bg-green-500" />
+                                Strong Technicals
+                            </div>
+                            <div className="flex items-center gap-2 text-sm text-gray-400">
+                                <div className="w-2 h-2 rounded-full bg-yellow-500" />
+                                Pacing Issues
+                            </div>
+                            <div className="flex items-center gap-2 text-sm text-gray-400">
+                                <div className="w-2 h-2 rounded-full bg-red-500" />
+                                Missed Edge Cases
+                            </div>
+                        </>
+                    )}
                 </div>
             </div>
         </section>
@@ -265,6 +337,11 @@ export default function Results() {
                         <div className={`transform transition-transform ${activeQuestion === q.id ? 'rotate-180' : ''}`}>
                             <ChevronDown className="text-gray-500" />
                         </div>
+                    </div>
+
+                    {/* Always visible summary for quick scanning */}
+                    <div className="px-6 pb-4 text-sm text-gray-400 line-clamp-2">
+                        {q.yourAnswer}
                     </div>
 
                     {activeQuestion === q.id && (

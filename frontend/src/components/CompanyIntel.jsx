@@ -23,77 +23,8 @@ import {
 } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 
-// Mock Data Generator
-const generateCompanyData = (companyName) => {
-  const techStacks = {
-    'Google': ['Python', 'Go', 'C++', 'Angular', 'TensorFlow', 'Kubernetes'],
-    'Amazon': ['Java', 'C++', 'Perl', 'React', 'AWS', 'Ruby'],
-    'Meta': ['Hack', 'React', 'GraphQL', 'PyTorch', 'C++'],
-    'Netflix': ['Java', 'Node.js', 'React', 'RxJava', 'Spring Boot'],
-    'Microsoft': ['C#', '.NET', 'Azure', 'React', 'TypeScript']
-  };
-
-  const values = {
-    'Google': ['Focus on the user', 'Fast is better than slow', 'Democracy on the web'],
-    'Amazon': ['Customer Obsession', 'Ownership', 'Bias for Action', 'Dive Deep'],
-    'Meta': ['Move Fast', 'Focus on Impact', 'Live in the Future'],
-    'Netflix': ['Judgment', 'Communication', 'Curiosity', 'Courage'],
-    'Microsoft': ['Growth Mindset', 'One Microsoft', 'Customer Obsession']
-  };
-
-  const topics = {
-    'Google': [
-      { topic: 'Graph Algorithms', probability: 85 },
-      { topic: 'Dynamic Programming', probability: 70 },
-      { topic: 'System Design (Scalability)', probability: 60 }
-    ],
-    'Amazon': [
-      { topic: 'Leadership Principles', probability: 95 },
-      { topic: 'OOD / Design Patterns', probability: 75 },
-      { topic: 'Arrays & Strings', probability: 60 }
-    ],
-    'Meta': [
-      { topic: 'Product Design', probability: 80 },
-      { topic: 'Recursion', probability: 70 },
-      { topic: 'Trees & Graphs', probability: 65 }
-    ]
-  };
-
-  const news = {
-    'Google': [
-      'Google announces new AI model Gemini 1.5',
-      'Cloud revenue grows by 25% in Q4',
-      'New campus opening in downtown San Jose'
-    ],
-    'Amazon': [
-      'AWS launches new generative AI features',
-      'Amazon expands drone delivery to new cities',
-      'Prime Day sets new sales record'
-    ]
-  };
-
-  return {
-    name: companyName,
-    logo: `https://logo.clearbit.com/${companyName.toLowerCase().replace(/\s/g, '')}.com`,
-    techStack: techStacks[companyName] || ['JavaScript', 'Python', 'React', 'AWS', 'Docker'],
-    values: values[companyName] || ['Innovation', 'Customer First', 'Integrity', 'Excellence'],
-    topics: topics[companyName] || [
-      { topic: 'Data Structures', probability: 75 },
-      { topic: 'Algorithms', probability: 65 },
-      { topic: 'System Design', probability: 50 }
-    ],
-    tips: [
-      "They value clarification questions highly. Don't jump to coding immediately.",
-      "Communication is key. Think out loud.",
-      "Optimize for space complexity as well as time."
-    ],
-    news: news[companyName] || [
-      `${companyName} reports strong quarterly earnings`,
-      `${companyName} to acquire AI startup`,
-      `New CTO appointed at ${companyName}`
-    ]
-  };
-};
+import { searchCompanyIntel } from '../services/api';
+import SentimentRadar from './SentimentRadar';
 
 const CompanyIntel = () => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -102,18 +33,34 @@ const CompanyIntel = () => {
   const [searched, setSearched] = useState(false);
   const location = useLocation();
 
-  const handleSearch = (e) => {
+  const handleSearch = async (e) => {
     e.preventDefault();
     if (!searchTerm.trim()) return;
     
     setLoading(true);
     setSearched(true);
+    setData(null);
     
-    // Simulate API call
-    setTimeout(() => {
-      setData(generateCompanyData(searchTerm));
+    try {
+      const result = await searchCompanyIntel(searchTerm);
+      // Enrich result with UI-specific fields that the API doesn't return
+      const enrichedData = {
+        ...result,
+        name: searchTerm,
+        logo: `https://logo.clearbit.com/${searchTerm.toLowerCase().replace(/\s/g, '')}.com`,
+        // Ensure arrays exist to prevent rendering errors
+        techStack: result.techStack || [],
+        values: result.values || [],
+        topics: result.topics || [],
+        tips: result.tips || [],
+        news: result.news || []
+      };
+      setData(enrichedData);
+    } catch (error) {
+      console.error("Failed to fetch company intel", error);
+    } finally {
       setLoading(false);
-    }, 1500);
+    }
   };
 
   const NavLink = ({ to, icon: Icon, label, active }) => (
@@ -151,6 +98,7 @@ const CompanyIntel = () => {
           <NavLink to="/dojo" icon={Code} label="Code Dojo" />
           <NavLink to="/resume" icon={FileText} label="Resume Architect" />
           <NavLink to="/recon" icon={Target} label="Recon Room" active />
+          <NavLink to="/pathfinder" icon={TrendingUp} label="Pathfinder" />
           <NavLink to="/negotiator" icon={DollarSign} label="The Negotiator" />
           <NavLink to="/results" icon={Activity} label="Analytics" />
           <NavLink to="/history" icon={History} label="Mission History" />
@@ -250,6 +198,9 @@ const CompanyIntel = () => {
                 </div>
               </div>
 
+              {/* Sentiment Radar */}
+              {data.sentiment && <SentimentRadar companyName={data.name} data={data.sentiment} />}
+
               {/* Grid Layout */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 
@@ -262,11 +213,15 @@ const CompanyIntel = () => {
                     <h3 className="text-lg font-semibold">Tech Stack Radar</h3>
                   </div>
                   <div className="flex flex-wrap gap-3">
-                    {data.techStack.map((tech, idx) => (
-                      <div key={idx} className="px-4 py-2 rounded-lg bg-white/5 border border-white/10 hover:border-orange-500/30 hover:bg-orange-500/5 transition-colors cursor-default">
-                        <span className="text-gray-300 font-mono text-sm">{tech}</span>
-                      </div>
-                    ))}
+                    {data.techStack && data.techStack.length > 0 ? (
+                      data.techStack.map((tech, idx) => (
+                        <div key={idx} className="px-4 py-2 rounded-lg bg-white/5 border border-white/10 hover:border-orange-500/30 hover:bg-orange-500/5 transition-colors cursor-default">
+                          <span className="text-gray-300 font-mono text-sm">{tech}</span>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="text-gray-500 text-sm italic">No tech stack data available.</div>
+                    )}
                   </div>
                 </div>
 

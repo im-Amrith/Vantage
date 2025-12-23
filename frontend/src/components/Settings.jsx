@@ -27,23 +27,67 @@ import {
   Trello
 } from 'lucide-react';
 import { Button } from './ui/button';
+import { auth } from '../lib/firebase';
+import { getResumes, uploadResume } from '../services/api';
 
 export default function Settings() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('identity');
+  const fileInputRef = useRef(null);
   
-  // Mock State for Identity
+  // State for Identity
   const [profile, setProfile] = useState({
-    name: "Alex Chen",
+    name: "",
+    email: "",
+    photoURL: "",
     title: "Computer Science Student",
     level: "Junior"
   });
 
-  // Mock State for Knowledge Base
-  const [resumes, setResumes] = useState([
-    { id: 1, name: "Alex_Chen_Resume_2024.pdf", date: "2024-12-20", default: true },
-    { id: 2, name: "Alex_Chen_CV_Draft.pdf", date: "2024-11-15", default: false }
-  ]);
+  // State for Knowledge Base
+  const [resumes, setResumes] = useState([]);
+
+  useEffect(() => {
+    const unsubscribe = auth.onAuthStateChanged((user) => {
+      if (user) {
+        setProfile(prev => ({
+          ...prev,
+          name: user.displayName || "User",
+          email: user.email,
+          photoURL: user.photoURL
+        }));
+      }
+    });
+    loadResumes();
+    return () => unsubscribe();
+  }, []);
+
+  const loadResumes = async () => {
+    try {
+      const data = await getResumes();
+      setResumes(data);
+    } catch (error) {
+      console.error("Failed to load resumes", error);
+    }
+  };
+
+  const handleUploadClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    
+    try {
+      await uploadResume(file);
+      loadResumes();
+    } catch (error) {
+      console.error("Failed to upload resume", error);
+    }
+  };
+
+  // Mock State for Simulation
 
   // Mock State for Simulation
   const [persona, setPersona] = useState('tech_lead');
@@ -87,7 +131,7 @@ export default function Settings() {
               <div className="relative group cursor-pointer">
                 <div className="w-32 h-32 rounded-full bg-gradient-to-tr from-orange-500 to-pink-500 p-[2px] shadow-[0_0_20px_rgba(249,115,22,0.3)]">
                   <div className="w-full h-full rounded-full bg-[#0B0C10] overflow-hidden relative">
-                    <img src="https://i.pravatar.cc/150?img=11" alt="Profile" className="w-full h-full object-cover opacity-90 group-hover:opacity-100 transition-opacity" />
+                    <img src={profile.photoURL || "https://i.pravatar.cc/150?img=11"} alt="Profile" className="w-full h-full object-cover opacity-90 group-hover:opacity-100 transition-opacity" />
                     <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                         <Camera size={24} className="text-white" />
                     </div>
@@ -162,7 +206,17 @@ export default function Settings() {
                 <FileText size={20} className="text-blue-500" />
                 Resume Repository
               </h3>
-              <button className="relative overflow-hidden rounded-lg bg-white/5 hover:bg-white/10 px-4 py-2 font-medium text-white border border-white/10 transition-all flex items-center gap-2 group">
+              <input 
+                type="file" 
+                ref={fileInputRef} 
+                className="hidden" 
+                accept=".pdf" 
+                onChange={handleFileChange} 
+              />
+              <button 
+                onClick={handleUploadClick}
+                className="relative overflow-hidden rounded-lg bg-white/5 hover:bg-white/10 px-4 py-2 font-medium text-white border border-white/10 transition-all flex items-center gap-2 group"
+              >
                 <Upload size={16} className="group-hover:text-orange-500 transition-colors" />
                 <span>Upload New</span>
               </button>
@@ -181,7 +235,7 @@ export default function Settings() {
                     </div>
                   </div>
                   <div className="flex items-center gap-4">
-                    {resume.default ? (
+                    {resume.is_default ? (
                       <span className="text-[10px] bg-green-500/10 text-green-400 px-2 py-1 rounded border border-green-500/20 font-mono tracking-wider">ACTIVE_CONTEXT</span>
                     ) : (
                       <button className="text-xs text-slate-500 hover:text-white transition-colors font-mono">SET_DEFAULT</button>
@@ -454,19 +508,7 @@ export default function Settings() {
           </button>
         </nav>
 
-        <div className="pt-6 border-t border-white/5">
-            <div className="flex items-center gap-3 p-2 rounded-xl hover:bg-white/5 cursor-pointer transition-colors">
-                <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-orange-500 to-pink-500 p-[2px]">
-                    <div className="w-full h-full rounded-full bg-[#0B0C10] overflow-hidden">
-                        <img src="https://i.pravatar.cc/150?img=11" alt="User" className="w-full h-full object-cover" />
-                    </div>
-                </div>
-                <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-white truncate">Alex Chen</p>
-                    <p className="text-xs text-slate-500 truncate">Pro Member</p>
-                </div>
-            </div>
-        </div>
+
       </aside>
 
       {/* Main Content */}

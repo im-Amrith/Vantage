@@ -20,67 +20,15 @@ import {
   Calendar,
   MessageSquare,
   Trello,
-  Zap
+  Zap,
+  Loader2
 } from 'lucide-react';
-
-// Mock Data
-const initialData = {
-  columns: {
-    'wishlist': {
-      id: 'wishlist',
-      title: 'Wishlist',
-      color: 'border-slate-500',
-      items: [
-        { id: 'job-1', company: 'Netflix', role: 'Senior Backend Engineer', logo: 'https://logo.clearbit.com/netflix.com', daysAgo: 2, status: 'active' },
-        { id: 'job-2', company: 'Airbnb', role: 'Staff Software Engineer', logo: 'https://logo.clearbit.com/airbnb.com', daysAgo: 5, status: 'active' },
-      ]
-    },
-    'applied': {
-      id: 'applied',
-      title: 'Applied',
-      color: 'border-blue-500',
-      items: [
-        { id: 'job-3', company: 'Stripe', role: 'Product Engineer', logo: 'https://logo.clearbit.com/stripe.com', daysAgo: 15, status: 'stagnant' },
-        { id: 'job-4', company: 'Uber', role: 'Backend Developer', logo: 'https://logo.clearbit.com/uber.com', daysAgo: 3, status: 'active' },
-      ]
-    },
-    'phone': {
-      id: 'phone',
-      title: 'Phone Screen',
-      color: 'border-purple-500',
-      items: [
-        { id: 'job-5', company: 'DoorDash', role: 'Senior Engineer', logo: 'https://logo.clearbit.com/doordash.com', daysAgo: 1, status: 'active' },
-      ]
-    },
-    'technical': {
-      id: 'technical',
-      title: 'Technical Round',
-      color: 'border-orange-500',
-      items: [
-        { id: 'job-6', company: 'Google', role: 'L5 Software Engineer', logo: 'https://logo.clearbit.com/google.com', daysAgo: 4, status: 'active' },
-      ]
-    },
-    'offer': {
-      id: 'offer',
-      title: 'Offer',
-      color: 'border-green-500',
-      items: []
-    },
-    'rejected': {
-      id: 'rejected',
-      title: 'Rejected',
-      color: 'border-red-500',
-      items: [
-        { id: 'job-7', company: 'Meta', role: 'Production Engineer', logo: 'https://logo.clearbit.com/meta.com', daysAgo: 20, status: 'active' },
-      ]
-    }
-  },
-  columnOrder: ['wishlist', 'applied', 'phone', 'technical', 'offer', 'rejected']
-};
+import { getTrackerData, syncTrackerData, addTrackerJob } from '../services/api';
 
 const ApplicationTracker = () => {
   const navigate = useNavigate();
-  const [data, setData] = useState(initialData);
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [showMockModal, setShowMockModal] = useState(false);
   const [showAnalysisModal, setShowAnalysisModal] = useState(false);
   const [activeJob, setActiveJob] = useState(null);
@@ -91,7 +39,36 @@ const ApplicationTracker = () => {
     column: 'wishlist'
   });
 
-  const handleAddJob = (e) => {
+  React.useEffect(() => {
+    const loadData = async () => {
+      try {
+        const trackerData = await getTrackerData();
+        // Map backend snake_case to frontend camelCase
+        const formattedData = {
+            ...trackerData,
+            columnOrder: trackerData.column_order,
+            columns: Object.keys(trackerData.columns).reduce((acc, key) => {
+                acc[key] = {
+                    ...trackerData.columns[key],
+                    items: trackerData.columns[key].items.map(item => ({
+                        ...item,
+                        daysAgo: item.days_ago
+                    }))
+                };
+                return acc;
+            }, {})
+        };
+        setData(formattedData);
+      } catch (error) {
+        console.error("Failed to load tracker data", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadData();
+  }, []);
+
+  const handleAddJob = async (e) => {
     e.preventDefault();
     if (!newJob.company || !newJob.role) return;
 
@@ -101,29 +78,43 @@ const ApplicationTracker = () => {
       company: newJob.company,
       role: newJob.role,
       logo: `https://logo.clearbit.com/${newJob.company.toLowerCase().replace(/\s/g, '')}.com`,
-      daysAgo: 0,
+      days_ago: 0,
       status: 'active'
     };
 
+    // Optimistic update
     const column = data.columns[newJob.column];
     const newColumn = {
       ...column,
       items: [newJobItem, ...column.items]
     };
 
-    setData({
+    const newData = {
       ...data,
       columns: {
         ...data.columns,
         [newColumn.id]: newColumn
       }
-    });
+    };
+    
+    // Fix camelCase for UI
+    const uiJobItem = { ...newJobItem, daysAgo: 0 };
+    const uiColumn = { ...column, items: [uiJobItem, ...column.items] };
+    const uiData = { ...data, columns: { ...data.columns, [uiColumn.id]: uiColumn } };
 
+    setData(uiData);
     setShowAddModal(false);
     setNewJob({ company: '', role: '', column: 'wishlist' });
+
+    try {
+      await addTrackerJob(newJobItem);
+    } catch (error) {
+      console.error("Failed to add job", error);
+      // Revert or show error
+    }
   };
 
-  const onDragEnd = (result) => {
+  const onDragEnd = async (result) => {
     const { destination, source, draggableId } = result;
 
     if (!destination) return;
@@ -138,10 +129,14 @@ const ApplicationTracker = () => {
     const start = data.columns[source.droppableId];
     const finish = data.columns[destination.droppableId];
 
+    let newData;
+    let removedItem;
+
     // Moving within the same column
     if (start === finish) {
       const newItems = Array.from(start.items);
       const [removed] = newItems.splice(source.index, 1);
+      removedItem = removed;
       newItems.splice(destination.index, 0, removed);
 
       const newColumn = {
@@ -149,50 +144,86 @@ const ApplicationTracker = () => {
         items: newItems,
       };
 
-      setData({
+      newData = {
         ...data,
         columns: {
           ...data.columns,
           [newColumn.id]: newColumn,
         },
-      });
-      return;
+      };
+    } else {
+      // Moving from one column to another
+      const startItems = Array.from(start.items);
+      const [removed] = startItems.splice(source.index, 1);
+      removedItem = removed;
+      const newStart = {
+        ...start,
+        items: startItems,
+      };
+
+      const finishItems = Array.from(finish.items);
+      finishItems.splice(destination.index, 0, removed);
+      const newFinish = {
+        ...finish,
+        items: finishItems,
+      };
+
+      newData = {
+        ...data,
+        columns: {
+          ...data.columns,
+          [newStart.id]: newStart,
+          [newFinish.id]: newFinish,
+        },
+      };
     }
 
-    // Moving from one column to another
-    const startItems = Array.from(start.items);
-    const [removed] = startItems.splice(source.index, 1);
-    const finishItems = Array.from(finish.items);
-    finishItems.splice(destination.index, 0, removed);
-
-    const newStart = {
-      ...start,
-      items: startItems,
-    };
-
-    const newFinish = {
-      ...finish,
-      items: finishItems,
-    };
-
-    setData({
-      ...data,
-      columns: {
-        ...data.columns,
-        [newStart.id]: newStart,
-        [newFinish.id]: newFinish,
-      },
-    });
+    setData(newData);
 
     // Smart Actions Logic
     if (destination.droppableId === 'technical') {
-      setActiveJob(removed);
+      setActiveJob(removedItem);
       setShowMockModal(true);
     } else if (destination.droppableId === 'rejected') {
-      setActiveJob(removed);
+      setActiveJob(removedItem);
       setShowAnalysisModal(true);
     }
+
+    try {
+        const backendData = {
+            ...newData,
+            columns: Object.keys(newData.columns).reduce((acc, key) => {
+                acc[key] = {
+                    ...newData.columns[key],
+                    items: newData.columns[key].items.map(item => ({
+                        ...item,
+                        days_ago: item.daysAgo
+                    }))
+                };
+                return acc;
+            }, {})
+        };
+        await syncTrackerData(backendData);
+    } catch (error) {
+        console.error("Failed to sync tracker data", error);
+    }
   };
+
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[#0B0C10] text-white">
+        <Loader2 className="w-10 h-10 animate-spin text-orange-500" />
+      </div>
+    );
+  }
+
+  if (!data) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[#0B0C10] text-white">
+        <div className="text-red-500">Failed to load data</div>
+      </div>
+    );
+  }
 
   const NavLink = ({ to, icon: Icon, label, active }) => (
     <button
