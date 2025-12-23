@@ -1,6 +1,6 @@
 ---
 title: Vantage
-emoji: 🚀
+emoji: 
 colorFrom: yellow
 colorTo: red
 sdk: docker
@@ -10,3 +10,5 @@ app_port: 7860
 
 # Vantage
 AI Career Command Center
+
+
