@@ -1,0 +1,7 @@
+# Optional AI/RAG deps (may require Python <=3.12 on Windows)
+langchain==0.1.0
+langchain-groq>=0.0.1
+langchain-community==0.0.10
+chromadb==0.4.22
+pypdf==3.17.4
+

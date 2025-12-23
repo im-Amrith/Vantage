@@ -1,0 +1,4 @@
+# Optional audio deps (Whisper can be difficult to install on Windows/Python 3.13)
+# Prefer installing this in a separate environment (Python 3.10/3.11 recommended).
+openai-whisper==20231117
+soundfile==0.12.1
