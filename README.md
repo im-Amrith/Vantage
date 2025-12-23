@@ -1,7 +1,7 @@
 ---
 title: Vantage
-emoji: 🚀
-colorFrom: orange
+emoji: 
+colorFrom: yellow
 colorTo: red
 sdk: docker
 pinned: false
