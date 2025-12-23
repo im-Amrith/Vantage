@@ -23,4 +23,4 @@ RUN pip install --no-cache-dir --upgrade -r requirements-cv.txt
 COPY --chown=user . /app
 
 # Start the application
-CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "7860"]
+CMD ["uvicorn", "asgi:app", "--host", "0.0.0.0", "--port", "7860"]
