@@ -1,11 +1,9 @@
-name: Sync Backend to Hugging Face Spaces
+name: Sync to Hugging Face Spaces
 
 on:
   push:
     branches:
       - main
-    paths:
-      - 'backend/**'
   workflow_dispatch:
 
 jobs:
@@ -23,4 +21,6 @@ jobs:
         run: |
           git config --global user.email "actions@github.com"
           git config --global user.name "GitHub Actions"
-          git subtree push --prefix backend https://im-amrith:$HF_TOKEN@huggingface.co/spaces/im-amrith/Vantage main
+          # 1. Use 'git push' (not subtree) to send Frontend AND Backend
+          # 2. Use --force to fix the 'fetch first' error
+          git push --force https://im-amrith:$HF_TOKEN@huggingface.co/spaces/im-amrith/Vantage main

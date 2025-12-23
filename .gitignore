@@ -36,3 +36,7 @@ Thumbs.db
 
 #files
 firebase.js
+
+# Ignore user uploads and binary data
+backend/backend/data/uploads/
+*.pdf
