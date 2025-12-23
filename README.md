@@ -1,6 +1,6 @@
 ---
 title: Vantage
-emoji: 
+emoji: 🚀
 colorFrom: yellow
 colorTo: red
 sdk: docker
