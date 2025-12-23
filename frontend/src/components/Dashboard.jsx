@@ -118,10 +118,7 @@ const Dashboard = () => {
                         <img src="https://i.pravatar.cc/150?img=11" alt="User" className="w-full h-full object-cover" />
                     </div>
                 </div>
-                <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-white truncate">Alex Chen</p>
-                    <p className="text-xs text-slate-500 truncate">Pro Member</p>
-                </div>
+                
             </div>
         </div>
       </aside>
