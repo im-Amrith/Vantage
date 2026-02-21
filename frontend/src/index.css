@@ -18,7 +18,7 @@ body {
 }
 
 .bg-noise {
-  background-image: url("https://grainy-gradients.vercel.app/noise.svg");
+  background-image: url("/noise.svg");
   opacity: 0.03;
   pointer-events: none;
   position: fixed;

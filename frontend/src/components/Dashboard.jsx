@@ -149,7 +149,7 @@ const Dashboard = () => {
             <div className="md:col-span-2 p-[1px] rounded-3xl bg-gradient-to-b from-white/10 to-transparent">
                 <div className="h-full bg-[#0B0C10]/80 backdrop-blur-md rounded-3xl p-8 relative overflow-hidden group">
                     {/* Grid Pattern Overlay */}
-                    <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 mix-blend-overlay pointer-events-none"></div>
+                    <div className="absolute inset-0 bg-[url('/noise.svg')] opacity-20 mix-blend-overlay pointer-events-none"></div>
                     <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px] opacity-20 pointer-events-none"></div>
                     
                     <div className="absolute top-0 right-0 w-96 h-96 bg-orange-500/10 rounded-full blur-3xl -mr-20 -mt-20 pointer-events-none group-hover:bg-orange-500/20 transition-all duration-1000" />
