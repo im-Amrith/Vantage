@@ -1,5 +1,5 @@
-import React from 'react';
-import { signInWithPopup } from 'firebase/auth';
+import React, { useEffect } from 'react';
+import { signInWithRedirect, getRedirectResult } from 'firebase/auth';
 import { auth, googleProvider } from '../lib/firebase';
 import { useNavigate } from 'react-router-dom';
 import { Button } from './ui/button';
@@ -7,10 +7,24 @@ import { Button } from './ui/button';
 const Login = () => {
   const navigate = useNavigate();
 
+  // Handle redirect result when user returns from Google auth
+  useEffect(() => {
+    const handleRedirectResult = async () => {
+      try {
+        const result = await getRedirectResult(auth);
+        if (result?.user) {
+          navigate('/dashboard');
+        }
+      } catch (error) {
+        console.error("Error handling redirect result", error);
+      }
+    };
+    handleRedirectResult();
+  }, [navigate]);
+
   const handleGoogleLogin = async () => {
     try {
-      await signInWithPopup(auth, googleProvider);
-      navigate('/dashboard');
+      await signInWithRedirect(auth, googleProvider);
     } catch (error) {
       console.error("Error signing in with Google", error);
     }
